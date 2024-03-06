@@ -1,13 +1,11 @@
 package dk.easv.bll.bot;
 
 import dk.easv.bll.field.IField;
-import dk.easv.bll.game.GameState;
 import dk.easv.bll.game.IGameState;
 import dk.easv.bll.move.IMove;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 
 public class TestAi implements IBot {
@@ -30,21 +28,22 @@ public class TestAi implements IBot {
         while (System.currentTimeMillis() < time + maxTimeMs) {
             // Selection & Expansion phase
             Node selectedNode = selectNode(rootNode);
+            //System.out.println("selectedNode in mcts");
             if (selectedNode != null) {
+                System.out.println("SelectedNode is not null");
                 expandNode(selectedNode, state);
+                System.out.println("expandNode in mcts");
                 // Simulation phase
                 int score = simulateGame(selectedNode.getState());
-
+                System.out.println("SimulateGame in mcts");
                 // Backpropagation phase
                 selectedNode.updateStats(score);
-
+                System.out.println("Backpropagation in mcts");
                 count++;
             }
-
         }
-
         // Select the best move based on the node statistics
-        return selectBestMove(rootNode);
+        return selectBestMove(rootNode, state);
     }
 
     // Select node with UCB1 algorithm
@@ -54,8 +53,10 @@ public class TestAi implements IBot {
         Node selectedNode = null;
         double bestUCB1 = Double.NEGATIVE_INFINITY;
 
+        Node[] childNodes = rootNode.getChildren();
+        //System.out.println("Number of child nodes: " + childNodes.length);
         // Iterate over each child node of the root node
-        for (Node child : rootNode.getChildren()) {
+        for (Node child : childNodes) {
 
             // Calculate the exploitation term (average score) for the child node
             double exploitationTerm = (double) child.getScore() / child.getVisits();
@@ -66,6 +67,10 @@ public class TestAi implements IBot {
             // Calculate the UCB1 value by combining exploitation and exploration terms
             double ucb1Value = exploitationTerm + explorationTerm;
 
+            System.out.println("Child Node: " + child);
+            System.out.println("Exploitation Term: " + exploitationTerm);
+            System.out.println("Exploration Term: " + explorationTerm);
+            System.out.println("UCB1 Value: " + ucb1Value);
             // Update the selected node if the current child node has a higher UCB1 value
             if (ucb1Value > bestUCB1) {
                 bestUCB1 = ucb1Value;
@@ -85,15 +90,20 @@ public class TestAi implements IBot {
         }
         List<IMove> availableMoves = state.getField().getAvailableMoves();
 
+        System.out.println("Number of available moves: " + availableMoves.size());
+        System.out.println("Available moves: " + availableMoves);
+
         // Iterate over each available move
         for (IMove move : availableMoves) {
+
+            System.out.println("Processing move: " + move);
             // Create a new child node with the current node as parent and the move as action
             Node childNode = new Node(node, move, state);
 
             // Add the child node to the list of children of the current node
             node.addChild(childNode);
+            System.out.println("expandNode");
         }
-
     }
 
 
@@ -101,7 +111,7 @@ public class TestAi implements IBot {
         int totalScore = 0;
         IField field = state.getField();
         String[][] macroboard = field.getMacroboard();
-
+        System.out.println("simulateGame");
         // Evaluate each small board and accumulate scores
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -113,6 +123,7 @@ public class TestAi implements IBot {
 
                     // Evaluate the small board and add its score to the total score
                     totalScore += evaluateSmallBoard(smallBoard, macroboard);
+
                 }
             }
         }
@@ -222,7 +233,7 @@ public class TestAi implements IBot {
 
 
     // Select the best move based on the tree statistics
-    private IMove selectBestMove(Node rootNode) {
+    private IMove selectBestMove(Node rootNode, IGameState state) {
         // Select the best child node using the UCB1 algorithm
         Node bestChildNode = selectNode(rootNode);
 
@@ -232,15 +243,25 @@ public class TestAi implements IBot {
             return bestChildNode.getMove();
         } else {
             // No valid move found, return a default move or handle the situation according to your logic
-            return getDefaultMove();
+            return getDefaultMove(state);
         }
     }
 
-    private IMove getDefaultMove() {
-        // Return a default move here or handle the situation according to your logic
-        // For example, you can return a random move or a predefined move
-        // If no moves are available, return null or handle the situation as needed
-        return null;
+    private IMove getDefaultMove(IGameState state) {
+        // Get the list of available moves from the current game state
+        List<IMove> availableMoves = state.getField().getAvailableMoves();
+
+        // Check if there are any available moves
+        if (!availableMoves.isEmpty()) {
+            // Generate a random index within the range of available moves
+            int randomIndex = new Random().nextInt(availableMoves.size());
+
+            // Return the move at the randomly selected index
+            return availableMoves.get(randomIndex);
+        } else {
+            // If no moves are available, return null or handle the situation as needed
+            return null;
+        }
     }
     // Node class to represent nodes in the Monte Carlo tree
     private class Node {
@@ -258,10 +279,13 @@ public class TestAi implements IBot {
             this.visits = 0;
             this.score = 0;
             this.children = new ArrayList<>();
+
+            System.out.println("Created node: Parent=" + parent + ", Move=" + move + ", State=" + state);
         }
 
         public void addChild(Node child) {
             children.add(child);
+            System.out.println("Child added: " + child.toString());
         }
         public void updateStats(int score) {
             this.visits++;
