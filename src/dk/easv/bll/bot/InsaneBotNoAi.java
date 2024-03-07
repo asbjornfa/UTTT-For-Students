@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class insaneBotNoAi implements IBot {
+public class InsaneBotNoAi implements IBot {
 
     private Random rand = new Random();
     private final int moveTimeMs = 1000;
@@ -38,8 +38,6 @@ public class insaneBotNoAi implements IBot {
         // Get a list of legal moves available in the current state
         List<IMove> legalMoves = simulator.getCurrentState().getField().getAvailableMoves();
 
-
-
         // Check for winning move and return if found
         IMove winningMove = evaluateMoves(legalMoves, simulator, false);
         if (winningMove != null) return winningMove;
@@ -52,7 +50,7 @@ public class insaneBotNoAi implements IBot {
         if (state.getMoveNumber() == 0) {
             return optimizeInitialMove(legalMoves);
         }
-
+        // After the initial move, prioritize corners
         for (IMove move : legalMoves) {
             if ((move.getX() % 2 == 0) && (move.getY() % 2 == 0)) {
                 // Check if the corner vertically across it is available
@@ -96,13 +94,16 @@ public class insaneBotNoAi implements IBot {
     }
 
     /**
-     * Optimizes the initial move by choosing a corner if available, otherwise, chooses a random move.
+     * Chooses the initial move based on the available legal moves.
+     * If the middle is available, it selects the middle move.
+     * Otherwise, it prioritizes choosing a corner move.
+     * If no corner move is available, it selects a random move.
      *
-     * @param legalMoves List of legal moves in the current state.
-     * @return The optimized initial move.
+     * @param legalMoves The list of legal moves available in the current state.
+     * @return The chosen initial move.
      */
     private IMove optimizeInitialMove(List<IMove> legalMoves) {
-
+        // Check if the middle move is available
         IMove middleMove = null;
         for (IMove move : legalMoves) {
             if (move.getX() == BOARD_SIZE / 2 && move.getY() == BOARD_SIZE / 2) {
@@ -116,25 +117,39 @@ public class insaneBotNoAi implements IBot {
             return middleMove;
         }
 
-
+        // Check if the corner move is available
+        IMove cornerMove = null;
         for (IMove move : legalMoves) {
             // Choose a corner move if available
             if ((move.getX() % 2 == 0) && (move.getY() % 2 == 0)) {
-                return move;
+                cornerMove = move;
+                break;
             }
+        }
+        // If a corner move is available, choose it
+        if (cornerMove != null) {
+            return cornerMove;
         }
         // If no corner found, choose a random move
         return legalMoves.get(rand.nextInt(legalMoves.size()));
     }
 
+    /**
+     * Finds the vertically opposite corner move of a given corner move, if available.
+     *
+     * @param cornerMove The corner move for which the vertically opposite corner is to be found.
+     * @param legalMoves The list of legal moves available in the current state.
+     * @return The vertically opposite corner move if found; otherwise, returns null.
+     */
     private IMove findVerticallyOppositeCorner(IMove cornerMove, List<IMove> legalMoves) {
+        // Calculate the coordinates of the vertically opposite corner
         int oppositeX = (BOARD_SIZE - 1) - cornerMove.getX();
         int oppositeY = cornerMove.getY();
 
         // Check if the vertically opposite corner is available
         for (IMove move : legalMoves) {
             if (move.getX() == oppositeX && move.getY() == oppositeY) {
-                return move;
+                return move; // Return the vertically opposite corner move if found
             }
         }
 
@@ -153,11 +168,14 @@ public class insaneBotNoAi implements IBot {
         for (IMove move : moves) {
             // Create a simulator for evaluating moves
             GameSimulator evalSimulator = createSimulator(simulator.getCurrentState());
+            // Set the current player in the evaluation simulator based on the blocking flag
             evalSimulator.setCurrentPlayer(blocking ? (simulator.getCurrentPlayer() + 1) % 2 : simulator.getCurrentPlayer());
+            // Update the game state in the evaluation simulator with the current move
             evalSimulator.updateGame(move);
 
-            // Check if the move results in a win
+            // Check if the move results in a win in the evaluation simulator
             if (evalSimulator.getGameOver() == GameOverState.Win) {
+                // If a winning move is found, return it
                 return move;
             }
         }
